@@ -61,16 +61,11 @@ This guide uses SD boot only (safe, no need to wipe internal NAND).
 # Download the Correct Armbian Image
 
 ### Recommended image source  
-Use community-maintained H616/H618 builds:
-
-```
-https://github.com/ophub/amlogic-s9xxx-armbian
-```
 
 Download:
 
-- `Armbian_24.xx_H616-H618...img.xz`
-- `You can use the image i uploaded for H618, Unzip it.`
+- `The image I used:` https://github.com/NickAlilovic/build/releases/download/20241125/Armbian-20241125-unofficial_24.11.0-trunk_Transpeed-8k618-t_bookworm_edge_6.10.10_xfce_desktop.tar.gz
+- `Extract it twice. File type need to be 'Disk Image File'`
 ---
 
 # Flash Armbian to SD Card
