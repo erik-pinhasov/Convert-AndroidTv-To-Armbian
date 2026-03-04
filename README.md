@@ -195,17 +195,6 @@ Before enabling DHCP:
 
 ---
 
-# Configure Router DNS (LAN vs WAN)
-
-You must set:
-
-- **LAN DNS = Pi-hole IP**  
-- **WAN DNS = leave ISP / auto**
-
-Never place Pi-hole in WAN DNS — it breaks internet during boot.
-
----
-
 # Install Unbound (Full Local DNS Resolver)
 
 Unbound = privacy + no upstream DNS.
