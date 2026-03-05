@@ -65,6 +65,7 @@ This guide uses SD boot only (safe, no need to wipe internal NAND).
 Download:
 
 - `The image I used:` https://github.com/NickAlilovic/build/releases/download/20241125/Armbian-20241125-unofficial_24.11.0-trunk_Transpeed-8k618-t_bookworm_edge_6.10.10_xfce_desktop.tar.gz
+- You can download it from my current repo releases
 - `Extract it twice. (File type:Disk Image File / extension:.img)`
 ---
 
