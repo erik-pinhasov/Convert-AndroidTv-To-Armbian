@@ -5,8 +5,7 @@ This project documents the architectural conversion of a compromised, malware-in
 
 Rather than discarding the hardware, the internal storage was bypassed, and the device was re-provisioned as a containerized home infrastructure node. 
 
-<img width="961" height="661" alt="Screenshot 2026-05-23 145245" src="https://github.com/user-attachments/assets/6fcc77ff-88e8-407e-b09f-66dd937e9ae9" />
-<img width="369" height="800" alt="21" src="https://github.com/user-attachments/assets/74f3fb73-ba71-448a-94e4-65aad2864a00" />
+<img width="900" height="491" alt="1" src="https://github.com/user-attachments/assets/f8418af1-55e4-4b43-8f20-c76874b0ec5c" />
 
 ---
 
