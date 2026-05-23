@@ -1,0 +1,101 @@
+name: VirusTotal Release Scan
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  scan-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Scan Release via VirusTotal
+        env:
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            RELEASE_ID=$(jq -r '.release.id' "$GITHUB_EVENT_PATH")
+            BODY=$(jq -r '.release.body // ""' "$GITHUB_EVENT_PATH")
+            URLS=$(jq -r '.release.assets[].browser_download_url' "$GITHUB_EVENT_PATH")
+          else
+            RELEASE_JSON=$(curl -sf \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/latest")
+            RELEASE_ID=$(echo "$RELEASE_JSON" | jq -r '.id')
+            BODY=$(echo "$RELEASE_JSON" | jq -r '.body // ""')
+            URLS=$(echo "$RELEASE_JSON" | jq -r '.assets[].browser_download_url')
+          fi
+
+          [ -z "$URLS" ] && { echo "::error::No assets found"; exit 1; }
+
+          VT_FILE=$(mktemp)
+          printf '\n---\n### 🛡️ VirusTotal Scan\n' > "$VT_FILE"
+
+          while IFS= read -r URL; do
+            [ -z "$URL" ] && continue
+            FILENAME=$(basename "$URL")
+
+            # Submit URL for scanning
+            RESPONSE=$(curl -s --request POST \
+              --url "https://www.virustotal.com/api/v3/urls" \
+              --header "x-apikey: $VT_API_KEY" \
+              --form "url=$URL")
+
+            ANALYSIS_ID=$(echo "$RESPONSE" | jq -r '.data.id // empty')
+
+            if [ -z "$ANALYSIS_ID" ]; then
+              echo "- ❌ **$FILENAME** — Failed to submit" >> "$VT_FILE"
+              continue
+            fi
+
+            # Poll for results (max ~3 minutes)
+            echo "Waiting for scan results..."
+            for i in $(seq 1 18); do
+              sleep 10
+
+              ANALYSIS=$(curl -s \
+                --url "https://www.virustotal.com/api/v3/analyses/$ANALYSIS_ID" \
+                --header "x-apikey: $VT_API_KEY")
+
+              STATUS=$(echo "$ANALYSIS" | jq -r '.data.attributes.status')
+              [ "$STATUS" = "completed" ] && break
+              echo "  Poll $i — status: $STATUS"
+            done
+
+            URL_ID=$(echo -n "$URL" | sha256sum | awk '{print $1}')
+            VT_LINK="https://www.virustotal.com/gui/url/$URL_ID"
+
+            if [ "$STATUS" = "completed" ]; then
+              MALICIOUS=$(echo "$ANALYSIS" | jq -r '.data.attributes.stats.malicious')
+              SUSPICIOUS=$(echo "$ANALYSIS" | jq -r '.data.attributes.stats.suspicious')
+              UNDETECTED=$(echo "$ANALYSIS" | jq -r '.data.attributes.stats.undetected')
+              HARMLESS=$(echo "$ANALYSIS" | jq -r '.data.attributes.stats.harmless')
+              TOTAL=$((MALICIOUS + SUSPICIOUS + UNDETECTED + HARMLESS))
+
+              if [ "$MALICIOUS" -eq 0 ] && [ "$SUSPICIOUS" -eq 0 ]; then
+                VERDICT="✅ Clean — 0/${TOTAL} detections"
+              else
+                VERDICT="⚠️ ${MALICIOUS} malicious, ${SUSPICIOUS} suspicious out of ${TOTAL}"
+              fi
+
+              echo "- **$FILENAME** — $VERDICT — [Full Report]($VT_LINK)" >> "$VT_FILE"
+              echo "✅ $FILENAME: $VERDICT"
+            else
+              echo "- **$FILENAME** — ⏳ Scan pending — [View Report]($VT_LINK)" >> "$VT_FILE"
+              echo "⏳ $FILENAME: timed out waiting for results"
+            fi
+
+          done <<< "$URLS"
+
+          UPDATED_BODY="${BODY}$(cat "$VT_FILE")"
+          rm "$VT_FILE"
+
+          curl -sf --request PATCH \
+            --url "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID" \
+            --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            --header "Content-Type: application/json" \
+            --data "$(jq -n --arg body "$UPDATED_BODY" '{body: $body}')"
+
+          echo "✅ Release updated with VirusTotal results"
